@@ -56,7 +56,7 @@ the release workflow builds the zip, and CurseForge's packager would fight it.
 Still open, all optional:
 
 - a screenshot for the listing. Run `/onlinecheck demo` and photograph
-  that: fourteen invented names across all three states, so the window is
+  that: fourteen Warcraft NPCs across all three states, so the window is
   full and no real player's name and online status ends up in a public
   screenshot. It is also reproducible, so the picture can be retaken after
   any layout change instead of depending on who is logged in

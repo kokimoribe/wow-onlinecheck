@@ -420,20 +420,29 @@ end)
 -- demo
 --------------------------------------------------------------------------
 
--- Fills the window with invented names and fixed results, so the interface
--- can be photographed without publishing real players' names alongside
--- their online status -- and so the same picture can be retaken after a
--- layout change instead of depending on who happens to be logged in.
+-- Fills the window with fixed results so the interface can be photographed
+-- without publishing a real player's name next to their online status --
+-- and so the same picture can be retaken after a layout change instead of
+-- depending on who is logged in.
 --
--- Sends nothing and contacts nobody. Fourteen names so the thirteen-row
--- list is full and visibly scrollable, in a mix that shows what the three
--- states look like next to each other.
+-- Warcraft NPCs rather than names invented to look like players. An
+-- invented name is only unused if you check, and there are millions of
+-- characters: "Emberlyn" reads as plausible precisely because somebody
+-- would pick it, which is the whole problem. Nobody mistakes Thrall for a
+-- recruit, so the screenshot is unambiguously a demo. TBC-era figures
+-- alongside the familiar ones, since that is the client this runs on.
+--
+-- No apostrophes: player names cannot contain them, so "Kael'thas" would be
+-- a shape this box never really receives. Fourteen names, so the thirteen-row
+-- list is full and visibly scrollable, in a mix that shows all three states.
+--
+-- Sends nothing and contacts nobody.
 local DEMO = {
-  { "Aelinora", LIKELY }, { "Brackmaw", UNAVAILABLE }, { "Cindervale", LIKELY },
-  { "Dorrigan", UNAVAILABLE }, { "Emberlyn", UNAVAILABLE }, { "Fennwick", LIKELY },
-  { "Gralloch", UNKNOWN }, { "Hollowmere", UNAVAILABLE }, { "Ivarion", UNAVAILABLE },
-  { "Jessamyne", LIKELY }, { "Korrathil", UNAVAILABLE }, { "Lysandrel", UNKNOWN },
-  { "Mordwyn", UNAVAILABLE }, { "Neriah", UNAVAILABLE },
+  { "Thrall", LIKELY }, { "Sylvanas", UNAVAILABLE }, { "Jaina", LIKELY },
+  { "Illidan", UNAVAILABLE }, { "Khadgar", UNAVAILABLE }, { "Maiev", LIKELY },
+  { "Akama", UNKNOWN }, { "Velen", UNAVAILABLE }, { "Vashj", UNAVAILABLE },
+  { "Kaelthas", LIKELY }, { "Gruul", UNAVAILABLE }, { "Magtheridon", UNKNOWN },
+  { "Kazzak", UNAVAILABLE }, { "Nazgrel", UNAVAILABLE },
 }
 
 local function demo()
@@ -448,8 +457,8 @@ local function demo()
   lastRunAt = time()
   f:Show()
   refresh()
-  print("|cff8b7bf0OnlineCheck|r showing demo data. Nothing was sent and nobody was "
-    .. "contacted -- these names are invented. Run a real check to replace them.")
+  print("|cff8b7bf0OnlineCheck|r showing demo data -- Warcraft NPCs, not players. "
+    .. "Nothing was sent and nobody was contacted. Run a real check to replace them.")
 end
 
 SLASH_ONLINECHECK1 = "/onlinecheck"

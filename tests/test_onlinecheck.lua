@@ -250,11 +250,27 @@ do
   for line in (T.getText() or ""):gmatch("[^\r\n]+") do pasted[#pasted + 1] = line end
   ok(#pasted == 14 and pasted[1] == T.order[1], "the box shows the names the results came from")
 
+  -- Player names are letters only, so a demo name with an apostrophe or a
+  -- space ("Kael'thas", "Lady Vashj") would put a shape in the paste box
+  -- that the box never really receives, in the picture people judge this by.
+  local badShape = nil
+  for _, n in ipairs(T.order) do
+    if n:match("[^%a]") then badShape = n end
+  end
+  ok(badShape == nil, "every demo name has the shape of a real character name"
+    .. (badShape and ("  --> " .. badShape) or ""))
+
   local told = false
   for _, line in ipairs(mock.printed) do
     if line:match("Nothing was sent") then told = true end
   end
   ok(told, "the demo says in chat that it is not a real check")
+
+  local isNPC = false
+  for _, line in ipairs(mock.printed) do
+    if line:match("not players") then isNPC = true end
+  end
+  ok(isNPC, "and says the names are NPCs, not somebody's character")
 end
 
 --------------------------------------------------------------------------
