@@ -1,5 +1,5 @@
 --[[
-Control-flow tests for OnlineCheck.  Run:  lua tests/test_illscout.lua
+Control-flow tests for OnlineCheck.  Run:  lua tests/test_onlinecheck.lua
 
 Every case is a way the addon could claim to know something it does not.
 Version 0.1 shipped three of them, all reachable without a game running.
