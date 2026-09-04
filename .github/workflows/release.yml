@@ -1,0 +1,68 @@
+name: release
+
+# Tests run before anything is packaged, and the zip is built from the tagged
+# tree -- so what a release contains is exactly what the tag says it is.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+
+      - name: Tests
+        run: |
+          luac5.4 -p OnlineCheck/OnlineCheck.lua tests/*.lua
+          lua5.4 tests/test_onlinecheck.lua
+
+      - name: Check the tag matches the TOC version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          TOC=$(grep -oP '^## Version:\s*\K.*' OnlineCheck/OnlineCheck.toc | tr -d '\r')
+          echo "tag=$TAG toc=$TOC"
+          [ "$TAG" = "$TOC" ] || { echo "::error::tag $TAG does not match TOC version $TOC"; exit 1; }
+
+      - name: Package
+        run: |
+          # Only the addon folder. Tests, CI and docs are not shipped to
+          # players, and a zip that quietly carries them is a zip nobody has
+          # actually looked at.
+          zip -r OnlineCheck.zip OnlineCheck -x '*.DS_Store'
+          unzip -l OnlineCheck.zip
+          test "$(unzip -Z1 OnlineCheck.zip | grep -vc '/$')" = "2"
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" OnlineCheck.zip --generate-notes
+
+      # Disabled until CURSEFORGE_PROJECT_ID (a repository variable) and
+      # CURSEFORGE_TOKEN (a secret) are configured. With neither set this step
+      # is skipped, so the workflow is safe to run today.
+      - name: CurseForge upload
+        if: vars.CURSEFORGE_PROJECT_ID != ''
+        env:
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_PROJECT: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CF_GAME_VERSION: ${{ vars.CURSEFORGE_GAME_VERSION_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_GAME_VERSION" ]; then
+            echo "::error::CURSEFORGE_PROJECT_ID is set but CURSEFORGE_TOKEN or CURSEFORGE_GAME_VERSION_ID is missing."
+            exit 1
+          fi
+          METADATA=$(jq -n --arg n "$GITHUB_REF_NAME" --argjson gv "[$CF_GAME_VERSION]" \
+            '{changelog: "See the GitHub release notes.", changelogType: "text",
+              displayName: $n, gameVersions: $gv, releaseType: "release"}')
+          curl -fsS -X POST \
+            "https://wow.curseforge.com/api/projects/$CF_PROJECT/upload-file" \
+            -H "X-Api-Token: $CF_TOKEN" \
+            -F "metadata=$METADATA" \
+            -F "file=@OnlineCheck.zip"
