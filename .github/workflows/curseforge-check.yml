@@ -1,0 +1,48 @@
+name: curseforge-check
+
+# A dry run of everything the release does with CurseForge except the upload.
+# Run this by hand after changing the token or the target client: it proves
+# the credential works and that the version name resolves to exactly one id,
+# which is the pair of assumptions the release step cannot check for itself
+# without publishing something.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the game version
+        env:
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_VERSION_NAME: ${{ vars.CURSEFORGE_GAME_VERSION || '2.5.6' }}
+        run: |
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::error::CURSEFORGE_TOKEN is not set."; exit 1
+          fi
+
+          # -f so an auth failure is an error rather than an HTML page that
+          # jq would then fail to parse with a less useful message.
+          VERSIONS=$(curl -fsS "https://wow.curseforge.com/api/game/versions" \
+            -H "X-Api-Token: $CF_TOKEN") || {
+              echo "::error::The versions request failed -- the token is most likely wrong."
+              exit 1; }
+          echo "token works: $(echo "$VERSIONS" | jq 'length') game versions returned"
+
+          echo
+          echo "Versions whose name starts with ${CF_VERSION_NAME%.*}:"
+          echo "$VERSIONS" | jq -r --arg n "${CF_VERSION_NAME%.*}" \
+            '.[] | select(.name | startswith($n)) | "  \(.id)  \(.name)  (type \(.gameVersionTypeID))"'
+
+          HITS=$(echo "$VERSIONS" | jq -r --arg n "$CF_VERSION_NAME" \
+            '[.[] | select(.name == $n) | .id] | @tsv')
+          COUNT=$(echo "$HITS" | wc -w | tr -d ' ')
+          echo
+          if [ "$COUNT" = "1" ]; then
+            echo "OK: '$CF_VERSION_NAME' resolves to id $HITS -- a release will upload cleanly."
+          else
+            echo "::error::'$CF_VERSION_NAME' matched $COUNT versions, so a release would stop."
+            echo "Pick an id above and set it as the CURSEFORGE_GAME_VERSION_ID variable,"
+            echo "or set CURSEFORGE_GAME_VERSION to a name from the list."
+            exit 1
+          fi
