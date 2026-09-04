@@ -2,7 +2,7 @@
 ## Title: OnlineCheck
 ## Notes: Paste a list of character names and check who's online.
 ## Author: kokimoribe
-## Version: 1.0.2
+## Version: 1.0.3
 ## X-License: MIT
 ## X-Website: https://github.com/kokimoribe/wow-onlinecheck
 ## SavedVariablesPerCharacter: OnlineCheckDB
