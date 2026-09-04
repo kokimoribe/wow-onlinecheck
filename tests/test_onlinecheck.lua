@@ -35,6 +35,25 @@ local function statesOf()
   return out
 end
 
+local function plain(text)
+  return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+local function said(text)
+  for _, line in ipairs(mock.printed) do
+    if plain(line):find(text, 1, true) then return true end
+  end
+  return false
+end
+
+local function shows(text)
+  for _, widget in ipairs(mock.widgets) do
+    local value = rawget(widget, "__text")
+    if type(value) == "string" and plain(value):find(text, 1, true) then return true end
+  end
+  return false
+end
+
 --------------------------------------------------------------------------
 say("-- cancellation --")
 --------------------------------------------------------------------------
@@ -205,7 +224,7 @@ do
     T.login()
     local warned = false
     for _, line in ipairs(mock.printed) do
-      if line:match("prefix registration returned") then warned = true end
+      if line:find("Setup failed", 1, true) then warned = true end
     end
     mock.registerResult = nil
     ok(warned == case.warns and mock.registered, case.what)
@@ -262,15 +281,109 @@ do
 
   local told = false
   for _, line in ipairs(mock.printed) do
-    if line:match("Nothing was sent") then told = true end
+    if line:find("Showing sample results.", 1, true) then told = true end
   end
   ok(told, "the demo says in chat that it is not a real check")
 
-  local isNPC = false
+  local nextStep = false
   for _, line in ipairs(mock.printed) do
-    if line:match("not players") then isNPC = true end
+    if line:find("Paste your own names to run a check.", 1, true) then nextStep = true end
   end
-  ok(isNPC, "and says the names are NPCs, not somebody's character")
+  ok(nextStep, "the demo tells the player to replace the sample names")
+end
+
+--------------------------------------------------------------------------
+say("\n-- player-facing text --")
+--------------------------------------------------------------------------
+do
+  load(0)
+  ok(shows("Paste character names, one per line."), "the paste instruction names the expected input")
+  ok(shows("Click a name to open a whisper."), "the result hint does not imply a message is sent")
+  ok(shows("Check") and shows("Cancel"), "the action buttons keep their familiar labels")
+  T.login()
+  ok(said("Type /onlinecheck to open."), "the login message gives the registered command")
+end
+
+do
+  load(0)
+  T.setText("")
+  T.start()
+  ok(said("Paste at least one character name.") and #mock.sent == 0,
+     "an empty check asks for input without sending anything")
+end
+
+do
+  load(0)
+  T.setText("Aaa")
+  T.start()
+  ok(said("Checking 1 name (about 6s)."), "a single-name estimate uses the singular")
+  mock.drain()
+  ok(shows("1 likely online"), "the summary spells out likely online")
+  ok(said("Check complete."), "completion uses a short confirmation")
+  ok(said("No unavailable results. Try a character you know is offline"),
+     "an all-green run still asks for an independent check")
+end
+
+do
+  load(0)
+  T.setText("Aaa\nBbb")
+  T.start()
+  ok(said("Checking 2 names (about 7s)."), "a batch estimate uses the plural")
+  T.onEvent("No player named 'Aaa' is currently playing.")
+  mock.drain()
+  ok(not said("No unavailable results."), "the all-green warning is absent when an offline reply arrived")
+end
+
+do
+  for _, duringWait in ipairs({ false, true }) do
+    load(0)
+    T.setText("Aaa\nBbb")
+    T.start()
+    if duringWait then mock.drain(2) end
+    T.cancel()
+    mock.drain()
+    ok(said("Check cancelled.") and not said("Check complete."),
+       "cancellation is described consistently " .. (duringWait and "during the wait" or "during sending"))
+  end
+end
+
+do
+  for _, case in ipairs({
+    { result = mock.RETURNS_NIL, text = "nil" },
+    { result = 3, text = "3" },
+  }) do
+    load(case.result)
+    T.setText("Aaa\nBbb")
+    T.start()
+    mock.drain()
+    ok(said("Some names couldn't be checked. Their status is Unknown. Error: " .. case.text .. "."),
+       "send failures keep the diagnostic value " .. case.text)
+    ok(T.states.Aaa.state == "Unknown" and T.states.Bbb.state == "Unknown",
+       "shorter error text does not change unknown results for " .. case.text)
+  end
+end
+
+do
+  load(0)
+  mock.registerResult = 1
+  T.login()
+  mock.registerResult = nil
+  ok(said("Setup failed (error: 1)."), "setup failures keep the error value")
+end
+
+do
+  load(0)
+  SlashCmdList.ONLINECHECK("debug")
+  ok(said("Debug on. System messages will appear in chat during checks."), "debug mode explains where output appears")
+  T.setText("Aaa")
+  T.start()
+  T.onEvent("Unrelated system message")
+  ok(said("OnlineCheck debug: Unrelated system message"), "debug output still includes the original system message")
+  SlashCmdList.ONLINECHECK("debug")
+  ok(said("Debug off."), "debug mode confirms when it is disabled")
+  SlashCmdList.ONLINECHECK("pattern")
+  ok(said("Reply pattern:"), "the reply pattern remains available for troubleshooting")
+  mock.drain()
 end
 
 --------------------------------------------------------------------------

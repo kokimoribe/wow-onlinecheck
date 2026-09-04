@@ -98,7 +98,7 @@ local help = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 help:SetPoint("TOPLEFT", 14, -30)
 help:SetPoint("TOPRIGHT", -14, -30)
 help:SetJustifyH("LEFT")
-help:SetText("Click the box and paste names, one per line. Escape leaves it.")
+help:SetText("Paste character names, one per line.")
 
 -- paste box
 local pasteScroll = CreateFrame("ScrollFrame", "OnlineCheckPasteScroll", f, "UIPanelScrollFrameTemplate")
@@ -195,7 +195,7 @@ listScroll:SetSize(310, 234)
 -- it was undiscoverable.
 local rowHint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 rowHint:SetPoint("TOPLEFT", 16, -488)
-rowHint:SetText("Click a result to whisper that character.")
+rowHint:SetText("Click a name to open a whisper.")
 
 local ROWS, ROW_H = 13, 18
 local rows = {}
@@ -272,7 +272,7 @@ local function refresh()
   end
   local c = counts()
   local when = (not running and lastRunAt) and ("  |cff5f6678checked " .. date("%H:%M", lastRunAt) .. "|r") or ""
-  status:SetText(string.format("|cff54be87%d likely|r  |cff8b92a2%d unavailable|r  |cffe0a33c%d unknown|r%s",
+  status:SetText(string.format("|cff54be87%d likely online|r  |cff8b92a2%d unavailable|r  |cffe0a33c%d unknown|r%s",
     c[LIKELY], c[UNAVAILABLE], c[UNKNOWN], when))
 end
 listScroll:SetScript("OnVerticalScroll", function(self, offset)
@@ -311,7 +311,7 @@ local function settle()
   -- timer still fired and promoted everything to "Likely online" after the
   -- run had been abandoned -- the cancel button appeared to work and did not.
   if cancelled then
-    finish("cancelled. Names not yet answered stay Unknown.")
+    finish("Check cancelled.")
     return
   end
   -- Everything still Unknown after the settle window had its send accepted
@@ -327,21 +327,20 @@ local function settle()
   -- the two apart, so it asks rather than concludes. It certainly does not
   -- validate the green results.
   if sentCount > 0 and c[UNAVAILABLE] == 0 then
-    print("|cffe0a33cOnlineCheck|r nothing came back unavailable. Worth checking a "
-      .. "character you know is offline before trusting this run -- if that one also "
-      .. "reads Likely online, run |cffffffff/onlinecheck debug|r and send the raw lines.")
+    print("|cffe0a33cOnlineCheck|r No unavailable results. Try a character you know is "
+      .. "offline to check that the addon is working.")
   end
-  finish(string.format("done -- %d checked.", sentCount))
+  finish("Check complete.")
 end
 
 local function step(i)
   if cancelled then
-    finish("cancelled. Names not yet checked stay Unknown.")
+    finish("Check cancelled.")
     return
   end
   local name = order[i]
   if not name then
-    status:SetText(string.format("waiting %ds for late replies...", SETTLE_SECONDS))
+    status:SetText(string.format("Waiting for results (%ds)...", SETTLE_SECONDS))
     C_Timer.After(SETTLE_SECONDS, settle)
     return
   end
@@ -359,11 +358,11 @@ local function step(i)
     byName[name].sent = false
     if not warnedResult then
       warnedResult = true
-      print(("|cffe0a33cOnlineCheck|r send returned %s, which is not Success (%s). "
-        .. "Those names stay Unknown. Please report this value."):format(tostring(ok), tostring(SUCCESS)))
+      print(("|cffe0a33cOnlineCheck|r Some names couldn't be checked. "
+        .. "Their status is Unknown. Error: %s."):format(tostring(ok)))
     end
   end
-  status:SetText(string.format("checking %d of %d...", i, #order))
+  status:SetText(string.format("Checking %d of %d...", i, #order))
   refresh()
   C_Timer.After(SEND_INTERVAL, function() step(i + 1) end)
 end
@@ -380,15 +379,15 @@ local function startCheck()
     end
   end
   if #order == 0 then
-    print("|cff8b7bf0OnlineCheck|r nothing to check -- paste names first, one per line.")
+    print("|cff8b7bf0OnlineCheck|r Paste at least one character name.")
     return
   end
   running, cancelled, sentCount = true, false, 0
   checkBtn:Disable()
   cancelBtn:Enable()
   refresh()
-  print(string.format("|cff8b7bf0OnlineCheck|r checking %d names, about %ds.",
-    #order, math.ceil(#order * SEND_INTERVAL + SETTLE_SECONDS)))
+  print(string.format("|cff8b7bf0OnlineCheck|r Checking %d name%s (about %ds).",
+    #order, #order == 1 and "" or "s", math.ceil(#order * SEND_INTERVAL + SETTLE_SECONDS)))
   step(1)
 end
 
@@ -403,7 +402,7 @@ f:SetScript("OnEvent", function(_, event, msg)
   if event ~= "CHAT_MSG_SYSTEM" or not running then return end
   local who = msg:match(NOT_FOUND_PATTERN)
   if not who then
-    if debugging then print("|cff5f6678OnlineCheck raw:|r " .. msg) end
+    if debugging then print("|cff5f6678OnlineCheck debug:|r " .. msg) end
     return
   end
   -- Match case-insensitively: the server echoes its own capitalisation.
@@ -457,16 +456,15 @@ local function demo()
   lastRunAt = time()
   f:Show()
   refresh()
-  print("|cff8b7bf0OnlineCheck|r showing demo data -- Warcraft NPCs, not players. "
-    .. "Nothing was sent and nobody was contacted. Run a real check to replace them.")
+  print("|cff8b7bf0OnlineCheck|r Showing sample results. Paste your own names to run a check.")
 end
 
 SLASH_ONLINECHECK1 = "/onlinecheck"
 SlashCmdList.ONLINECHECK = function(arg)
   if arg and arg:lower():match("debug") then
     debugging = not debugging
-    print("|cff8b7bf0OnlineCheck|r debug " .. (debugging and "on -- raw system messages will print during a check."
-      or "off."))
+    print("|cff8b7bf0OnlineCheck|r " .. (debugging and "Debug on. System messages will appear in chat during checks."
+      or "Debug off."))
     return
   end
   if arg and arg:lower():match("demo") then
@@ -474,7 +472,7 @@ SlashCmdList.ONLINECHECK = function(arg)
     return
   end
   if arg and arg:lower():match("pattern") then
-    print("|cff8b7bf0OnlineCheck|r matching: " .. NOT_FOUND_PATTERN)
+    print("|cff8b7bf0OnlineCheck|r Reply pattern: " .. NOT_FOUND_PATTERN)
     return
   end
   if f:IsShown() then f:Hide() else f:Show() end
@@ -491,10 +489,10 @@ init:SetScript("OnEvent", function()
   end
   local reg = C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
   if reg == false or (type(reg) == "number" and reg ~= 0) then
-    print(("|cffe0a33cOnlineCheck|r prefix registration returned %s; checks will probably "
-      .. "fail."):format(tostring(reg)))
+    print(("|cffe0a33cOnlineCheck|r Setup failed (error: %s).")
+      :format(tostring(reg)))
   end
-  print("|cff8b7bf0OnlineCheck|r loaded. /onlinecheck to open.")
+  print("|cff8b7bf0OnlineCheck|r Type /onlinecheck to open.")
 end)
 
 -- Test seam. `OnlineCheckTest` is never defined in the client; the harness in

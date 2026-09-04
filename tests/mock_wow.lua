@@ -18,6 +18,7 @@ M.RETURNS_NIL = setmetatable({}, { __tostring = function() return "<nil>" end })
 function M.install(sendResult)
   if sendResult == M.RETURNS_NIL then sendResult = nil end
   M.registered = false
+  M.widgets = {}
   _G.UIParent = {}
   _G.UISpecialFrames = {}
   _G.SELECTED_DOCK_FRAME = {}
@@ -30,6 +31,7 @@ function M.install(sendResult)
   -- getter results (GetFrameLevel() - 1), and a table there just errors.
   local function stub()
     local t = {}
+    M.widgets[#M.widgets + 1] = t
     setmetatable(t, { __index = function() return function() return 0 end end })
     t.CreateFontString = function() return stub() end
     t.CreateTexture = function() return stub() end
