@@ -224,6 +224,37 @@ do
   ok(T.order[2] == "Mántle", "a name is taken from a 'Name, Spec Class' line")
 end
 
+--------------------------------------------------------------------------
+say("\n-- what the addon tells people to type --")
+--------------------------------------------------------------------------
+-- v1.0.1 shipped telling every new user "loaded. /scout to open." -- the
+-- name the addon had before it was renamed for CurseForge, and a command
+-- that is not registered. A rename leaves identifiers behind in strings,
+-- where nothing type-checks them and only a user ever finds out.
+do
+  local src = assert(io.open("OnlineCheck/OnlineCheck.lua")):read("a")
+
+  local registered = {}
+  for cmd in src:gmatch('SLASH_%u+%d+%s*=%s*"/(%a+)"') do registered[cmd] = true end
+
+  -- Commands the game provides, which the addon may legitimately name.
+  local builtin = { w = true, who = true, reload = true }
+
+  local unknown = {}
+  for pos, cmd in src:gmatch("()/(%a%a+)") do
+    -- A slash inside a word is a path or a unit like "chars/second", not a
+    -- command, so only count one at a boundary.
+    local before = pos > 1 and src:sub(pos - 1, pos - 1) or " "
+    if not before:match("[%w_]") and not registered[cmd] and not builtin[cmd] then
+      unknown[#unknown + 1] = "/" .. cmd
+    end
+  end
+
+  ok(registered.onlinecheck == true, "the slash command the addon registers is /onlinecheck")
+  ok(#unknown == 0, "every command named in the source is one that exists"
+    .. (#unknown > 0 and ("  --> " .. table.concat(unknown, " ")) or ""))
+end
+
 say("")
 say(string.format("%d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

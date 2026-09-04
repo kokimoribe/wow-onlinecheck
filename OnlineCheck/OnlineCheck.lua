@@ -321,7 +321,7 @@ local function settle()
   if sentCount > 0 and c[UNAVAILABLE] == 0 then
     print("|cffe0a33cOnlineCheck|r nothing came back unavailable. Worth checking a "
       .. "character you know is offline before trusting this run -- if that one also "
-      .. "reads Likely online, run |cffffffff/scout debug|r and send the raw lines.")
+      .. "reads Likely online, run |cffffffff/onlinecheck debug|r and send the raw lines.")
   end
   finish(string.format("done -- %d checked.", sentCount))
 end
@@ -437,7 +437,7 @@ init:SetScript("OnEvent", function()
     print(("|cffe0a33cOnlineCheck|r prefix registration returned %s; checks will probably "
       .. "fail."):format(tostring(reg)))
   end
-  print("|cff8b7bf0OnlineCheck|r loaded. /scout to open.")
+  print("|cff8b7bf0OnlineCheck|r loaded. /onlinecheck to open.")
 end)
 
 -- Test seam. `OnlineCheckTest` is never defined in the client; the harness in
