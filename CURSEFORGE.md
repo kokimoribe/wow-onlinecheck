@@ -41,33 +41,25 @@ D, the refined green check.
 > Developed and used on TBC Anniversary (2.5.6), English client. Other
 > versions and locales are untested — reports welcome on GitHub.
 
-## What is left
+## State
 
-Steps 1 and 2 are done: the project exists at
-<https://authors.curseforge.com/#/projects/1681279>, and
-`CURSEFORGE_PROJECT_ID` is set to `1681279`.
+Live at <https://authors.curseforge.com/#/projects/1681279>, slug `onlinecheck`.
+v1.0.3 uploaded by CI against game version 2.5.6 and is **Under Review** --
+until a moderator approves it, the project is not visible to anyone else and
+its files do not sync across CurseForge.
 
-Two things still need a person:
+Configured: name, summary, description, logo, MIT licence, 3rd-party
+distribution, class Addons, category Chat & Communication, and GitHub source
+(`kokimoribe/wow-onlinecheck`). Automatic Packaging is deliberately off --
+the release workflow builds the zip, and CurseForge's packager would fight it.
 
-1. **Create an API token** at <https://legacy.curseforge.com/account/api-tokens>
-   and add it as a repository secret named `CURSEFORGE_TOKEN`:
+Still open, all optional:
 
-       gh secret set CURSEFORGE_TOKEN --repo kokimoribe/wow-onlinecheck
-
-   Paste it at the prompt, so the token never lands in shell history.
-
-   Until this is set, the upload step warns and skips, and releases go to
-   GitHub only. It does not fail the release.
-
-2. **Add a screenshot** to the listing. The one showing a completed check,
-   with one result Likely online and the rest Unavailable, makes the point
-   better than any description.
-
-The game-version ID is no longer something to look up by hand — the workflow
-resolves `2.5.6` to its numeric ID at upload time and stops if the name
-matches zero or several versions, printing the candidates. To pin one
-instead, set the `CURSEFORGE_GAME_VERSION_ID` variable; to build against a
-different client, set `CURSEFORGE_GAME_VERSION` to its name.
+- a screenshot for the listing
+- additional category (Guild) -- where guild officers actually browse
+- comments are off, so feedback arrives only as GitHub issues
+- the display name is `onlinecheck`, lowercase, against `OnlineCheck`
+  everywhere else. The slug is a separate field and would not change.
 
 ## Releasing
 
