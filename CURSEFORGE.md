@@ -9,7 +9,8 @@ Everything needed to publish, and the parts that still need a person.
 D, the refined green check.
 
 **Name** — OnlineCheck
-**Slug** — `onlinecheck` (confirmed unused, as is `online-check`)
+**Slug** — `onlinecheck`. Lowercase, and separate from the display name:
+renaming the project does not move the URL.
 **Categories** — Chat & Communication; Guild
 **License** — MIT
 
@@ -62,8 +63,6 @@ Still open, all optional:
   any layout change instead of depending on who is logged in
 - additional category (Guild) -- where guild officers actually browse
 - comments are off, so feedback arrives only as GitHub issues
-- the display name is `onlinecheck`, lowercase, against `OnlineCheck`
-  everywhere else. The slug is a separate field and would not change.
 
 ## Releasing
 
