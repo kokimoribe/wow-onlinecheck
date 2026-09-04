@@ -37,42 +37,48 @@ Everything needed to publish, and the parts that still need a person.
 > Developed and used on TBC Anniversary (2.5.6), English client. Other
 > versions and locales are untested — reports welcome on GitHub.
 
-## Before the first upload
+## What is left
 
-These need a person and can't be prepared here:
+Steps 1 and 2 are done: the project exists at
+<https://authors.curseforge.com/#/projects/1681279>, and
+`CURSEFORGE_PROJECT_ID` is set to `1681279`.
 
-1. **Create the project** at <https://authors.curseforge.com> — choose World
-   of Warcraft, paste the listing above, set the license to MIT, and link
-   <https://github.com/kokimoribe/wow-onlinecheck> as the source.
-2. **Note the numeric project ID** from the project page URL.
-3. **Create an API token** at <https://legacy.curseforge.com/account/api-tokens>.
-4. **Find the game-version ID** for TBC Anniversary 2.5.6:
+Two things still need a person:
 
-       curl -s https://wow.curseforge.com/api/game/versions \
-         -H "X-Api-Token: $CF_TOKEN" | jq '.[] | select(.name | test("2\\.5\\.6"))'
+1. **Create an API token** at <https://legacy.curseforge.com/account/api-tokens>
+   and add it as a repository secret named `CURSEFORGE_TOKEN`:
 
-5. **Configure the repository** so the release workflow can upload:
+       gh secret set CURSEFORGE_TOKEN --repo kokimoribe/wow-onlinecheck
 
-   | where | name | value |
-   |---|---|---|
-   | Variable | `CURSEFORGE_PROJECT_ID` | the numeric project ID |
-   | Variable | `CURSEFORGE_GAME_VERSION_ID` | the id from step 4 |
-   | Secret | `CURSEFORGE_TOKEN` | the API token |
+   Paste it at the prompt, so the token never lands in shell history.
 
-   Until `CURSEFORGE_PROJECT_ID` is set, the upload step is skipped and
-   releases go to GitHub only.
+   Until this is set, the upload step warns and skips, and releases go to
+   GitHub only. It does not fail the release.
 
-6. **A screenshot** for the listing. The one showing a completed check, with
-   one result Likely online and the rest Unavailable, makes the point better
-   than any description.
+2. **Add a screenshot** to the listing. The one showing a completed check,
+   with one result Likely online and the rest Unavailable, makes the point
+   better than any description.
+
+The game-version ID is no longer something to look up by hand — the workflow
+resolves `2.5.6` to its numeric ID at upload time and stops if the name
+matches zero or several versions, printing the candidates. To pin one
+instead, set the `CURSEFORGE_GAME_VERSION_ID` variable; to build against a
+different client, set `CURSEFORGE_GAME_VERSION` to its name.
 
 ## Releasing
 
     # bump ## Version: in OnlineCheck/OnlineCheck.toc first -- CI enforces
     # that the tag and the TOC agree
-    git tag v1.0.1 && git push --tags
+    git tag v1.0.2 && git push --tags
 
 The workflow runs the tests, refuses to package if the tag and TOC disagree,
-builds a zip containing only the addon folder, checks it holds exactly the two
-expected files, publishes a GitHub release, and uploads to CurseForge if the
-variables above are configured.
+builds a zip of the addon folder, checks it holds exactly the three expected
+files (the two addon files plus the licence), publishes a GitHub release, and
+uploads to CurseForge.
+
+## Worth confirming after the first upload
+
+Uploading successfully is not the same as the update path working, and the
+update path is the reason for publishing here. After the first release lands,
+install OnlineCheck through the CurseForge desktop app, push a version bump,
+and check that the app offers it.

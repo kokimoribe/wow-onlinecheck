@@ -48,21 +48,56 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" OnlineCheck.zip --generate-notes
 
-      # Disabled until CURSEFORGE_PROJECT_ID (a repository variable) and
-      # CURSEFORGE_TOKEN (a secret) are configured. With neither set this step
-      # is skipped, so the workflow is safe to run today.
+      # Runs once CURSEFORGE_PROJECT_ID (a repository variable) and
+      # CURSEFORGE_TOKEN (a secret) are both set. With the token missing this
+      # warns and skips rather than failing: the GitHub release has already
+      # been published by the step above, and marking the run red for an
+      # optional destination would say something untrue about it.
       - name: CurseForge upload
         if: vars.CURSEFORGE_PROJECT_ID != ''
         env:
           CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CF_PROJECT: ${{ vars.CURSEFORGE_PROJECT_ID }}
-          CF_GAME_VERSION: ${{ vars.CURSEFORGE_GAME_VERSION_ID }}
+          # The client this addon is built and tested against. Override with a
+          # repository variable if that changes.
+          CF_VERSION_NAME: ${{ vars.CURSEFORGE_GAME_VERSION || '2.5.6' }}
+          # Escape hatch: set this variable to pin the numeric id directly and
+          # skip the lookup below.
+          CF_VERSION_ID: ${{ vars.CURSEFORGE_GAME_VERSION_ID }}
         run: |
-          if [ -z "$CF_TOKEN" ] || [ -z "$CF_GAME_VERSION" ]; then
-            echo "::error::CURSEFORGE_PROJECT_ID is set but CURSEFORGE_TOKEN or CURSEFORGE_GAME_VERSION_ID is missing."
-            exit 1
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::warning::CURSEFORGE_TOKEN is not set, so this release went to GitHub only."
+            exit 0
           fi
-          METADATA=$(jq -n --arg n "$GITHUB_REF_NAME" --argjson gv "[$CF_GAME_VERSION]" \
+
+          # Resolve the numeric game-version id from its name, rather than
+          # asking a person to look it up and paste into a second variable --
+          # a hand-copied id is a thing that silently goes stale.
+          if [ -n "$CF_VERSION_ID" ]; then
+            GV="$CF_VERSION_ID"
+            echo "using the pinned game version id $GV"
+          else
+            VERSIONS=$(curl -fsS "https://wow.curseforge.com/api/game/versions" \
+              -H "X-Api-Token: $CF_TOKEN")
+            HITS=$(echo "$VERSIONS" | jq -r --arg n "$CF_VERSION_NAME" \
+              '[.[] | select(.name == $n) | .id] | @tsv')
+            COUNT=$(echo "$HITS" | wc -w | tr -d ' ')
+            # Exactly one match, or stop. CurseForge groups versions by client
+            # flavour, so a name can appear more than once -- and picking the
+            # first would quietly publish against the wrong client.
+            if [ "$COUNT" != "1" ]; then
+              echo "::error::Expected one CurseForge game version named" \
+                   "'$CF_VERSION_NAME', found $COUNT. Set CURSEFORGE_GAME_VERSION_ID" \
+                   "to the right id from this list:"
+              echo "$VERSIONS" | jq -r --arg n "${CF_VERSION_NAME%.*}" \
+                '.[] | select(.name | startswith($n)) | "  \(.id)  \(.name)"'
+              exit 1
+            fi
+            GV="$HITS"
+            echo "resolved game version $CF_VERSION_NAME to id $GV"
+          fi
+
+          METADATA=$(jq -n --arg n "$GITHUB_REF_NAME" --argjson gv "[$GV]" \
             '{changelog: "See the GitHub release notes.", changelogType: "text",
               displayName: $n, gameVersions: $gv, releaseType: "release"}')
           curl -fsS -X POST \
@@ -70,3 +105,4 @@ jobs:
             -H "X-Api-Token: $CF_TOKEN" \
             -F "metadata=$METADATA" \
             -F "file=@OnlineCheck.zip"
+          echo "uploaded to CurseForge project $CF_PROJECT"
