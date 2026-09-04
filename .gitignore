@@ -2,3 +2,12 @@
 .DS_Store
 # Copied in at package time so the addon ships with its terms.
 OnlineCheck/LICENSE
+
+# The rejected icon candidates from the design round. assets/ keeps the one
+# that was chosen and the prompt that made it; the other four are ~7MB of
+# images nothing links to, and git history is forever. They stay on disk.
+assets/logo-candidates/
+# Superseded by assets/onlinecheck-logo.png, which the README and the
+# CurseForge notes point at. Kept on disk, not in history.
+assets/onlinecheck-logo-v1.png
+assets/onlinecheck-logo-v1.prompt.md

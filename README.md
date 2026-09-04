@@ -1,5 +1,7 @@
 # OnlineCheck
 
+<img src="assets/onlinecheck-logo.png" alt="OnlineCheck green checkmark logo" width="128" height="128">
+
 Paste a list of character names and check who's online.
 
 Useful when you have more names than you want to check one at a time, and you

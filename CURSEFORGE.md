@@ -4,6 +4,10 @@ Everything needed to publish, and the parts that still need a person.
 
 ## Listing
 
+**Project icon** — [onlinecheck-logo.png](assets/onlinecheck-logo.png), a
+1254 × 1254 PNG. Use this for the listing's project image. Selected design:
+D, the refined green check.
+
 **Name** — OnlineCheck
 **Slug** — `onlinecheck` (confirmed unused, as is `online-check`)
 **Categories** — Chat & Communication; Guild
