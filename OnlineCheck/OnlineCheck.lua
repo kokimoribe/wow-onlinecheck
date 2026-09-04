@@ -81,7 +81,7 @@ local NOT_FOUND_PATTERN = toPattern(ERR_CHAT_PLAYER_NOT_FOUND_S or "No player na
 -- ui
 --------------------------------------------------------------------------
 local f = CreateFrame("Frame", "OnlineCheckFrame", UIParent, "BasicFrameTemplateWithInset")
-f:SetSize(360, 500)
+f:SetSize(360, 522)
 f:SetPoint("CENTER")
 f:SetMovable(true)
 f:EnableMouse(true)
@@ -98,7 +98,7 @@ local help = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 help:SetPoint("TOPLEFT", 14, -30)
 help:SetPoint("TOPRIGHT", -14, -30)
 help:SetJustifyH("LEFT")
-help:SetText("Click the box and paste names, one per line. Escape releases it.")
+help:SetText("Click the box and paste names, one per line. Escape leaves it.")
 
 -- paste box
 local pasteScroll = CreateFrame("ScrollFrame", "OnlineCheckPasteScroll", f, "UIPanelScrollFrameTemplate")
@@ -188,6 +188,14 @@ status:SetText("")
 local listScroll = CreateFrame("ScrollFrame", "OnlineCheckListScroll", f, "FauxScrollFrameTemplate")
 listScroll:SetPoint("TOPLEFT", 14, -248)
 listScroll:SetSize(310, 234)
+
+-- Clicking a row to open a whisper is the reason the results are buttons,
+-- and nothing about a list of names suggests it. Reported as a nice
+-- surprise by the first person to use this, which is another way of saying
+-- it was undiscoverable.
+local rowHint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+rowHint:SetPoint("TOPLEFT", 16, -488)
+rowHint:SetText("Click a result to whisper that character.")
 
 local ROWS, ROW_H = 13, 18
 local rows = {}
@@ -408,12 +416,52 @@ f:SetScript("OnEvent", function(_, event, msg)
   end
 end)
 
+--------------------------------------------------------------------------
+-- demo
+--------------------------------------------------------------------------
+
+-- Fills the window with invented names and fixed results, so the interface
+-- can be photographed without publishing real players' names alongside
+-- their online status -- and so the same picture can be retaken after a
+-- layout change instead of depending on who happens to be logged in.
+--
+-- Sends nothing and contacts nobody. Fourteen names so the thirteen-row
+-- list is full and visibly scrollable, in a mix that shows what the three
+-- states look like next to each other.
+local DEMO = {
+  { "Aelinora", LIKELY }, { "Brackmaw", UNAVAILABLE }, { "Cindervale", LIKELY },
+  { "Dorrigan", UNAVAILABLE }, { "Emberlyn", UNAVAILABLE }, { "Fennwick", LIKELY },
+  { "Gralloch", UNKNOWN }, { "Hollowmere", UNAVAILABLE }, { "Ivarion", UNAVAILABLE },
+  { "Jessamyne", LIKELY }, { "Korrathil", UNAVAILABLE }, { "Lysandrel", UNKNOWN },
+  { "Mordwyn", UNAVAILABLE }, { "Neriah", UNAVAILABLE },
+}
+
+local function demo()
+  wipe(names); wipe(byName); wipe(order)
+  local lines = {}
+  for i, e in ipairs(DEMO) do
+    order[i], lines[i] = e[1], e[1]
+    byName[e[1]] = { state = e[2], sent = true, idx = i }
+  end
+  paste:SetText(table.concat(lines, "\n"))
+  running, cancelled = false, false
+  lastRunAt = time()
+  f:Show()
+  refresh()
+  print("|cff8b7bf0OnlineCheck|r showing demo data. Nothing was sent and nobody was "
+    .. "contacted -- these names are invented. Run a real check to replace them.")
+end
+
 SLASH_ONLINECHECK1 = "/onlinecheck"
 SlashCmdList.ONLINECHECK = function(arg)
   if arg and arg:lower():match("debug") then
     debugging = not debugging
     print("|cff8b7bf0OnlineCheck|r debug " .. (debugging and "on -- raw system messages will print during a check."
       or "off."))
+    return
+  end
+  if arg and arg:lower():match("demo") then
+    demo()
     return
   end
   if arg and arg:lower():match("pattern") then
@@ -448,6 +496,7 @@ if OnlineCheckTest then
   OnlineCheckTest.start   = startCheck
   OnlineCheckTest.cancel  = function() cancelled = true end
   OnlineCheckTest.setText = function(t) paste:SetText(t) end
+  OnlineCheckTest.getText = function() return paste:GetText() end
   OnlineCheckTest.states  = byName
   OnlineCheckTest.order   = order
   OnlineCheckTest.onEvent = function(msg) f:GetScript("OnEvent")(f, "CHAT_MSG_SYSTEM", msg) end

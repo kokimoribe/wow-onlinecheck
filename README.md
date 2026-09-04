@@ -9,7 +9,10 @@ would rather not add them all to your friends list to find out.
 
 ## Install
 
-Download `OnlineCheck.zip` from the
+**[Install from CurseForge](https://www.curseforge.com/wow/addons/onlinecheck)**
+-- with the CurseForge app this is one click and updates arrive on their own.
+
+Or by hand: download `OnlineCheck.zip` from the
 [latest release](https://github.com/kokimoribe/wow-onlinecheck/releases/latest)
 and unzip it so that `OnlineCheck\OnlineCheck.toc` sits directly inside your
 `Interface\AddOns` folder.
@@ -23,6 +26,7 @@ Restart the client for a first install. `/reload` is enough afterwards.
 ## Use
 
     /onlinecheck            open and close the window
+    /onlinecheck demo       fill the window with invented names and results
     /onlinecheck debug      print raw system messages during a check
     /onlinecheck pattern    show the pattern replies are matched against
 

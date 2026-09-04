@@ -225,6 +225,39 @@ do
 end
 
 --------------------------------------------------------------------------
+say("\n-- demo data --")
+--------------------------------------------------------------------------
+-- The demo exists so a screenshot never has to show real players' names
+-- next to their online status. That is only true if it sends nothing: a
+-- "demo" that quietly probed fourteen invented names would defeat its own
+-- purpose and put traffic on the realm for a picture.
+do
+  load(0)
+  _G.SlashCmdList.ONLINECHECK("demo")
+  mock.drain()
+
+  ok(#mock.sent == 0, "the demo sends no addon messages")
+  ok(#T.order == 14, "the demo fills the list past the visible thirteen rows")
+
+  local states = {}
+  for _, n in ipairs(T.order) do states[T.states[n].state] = (states[T.states[n].state] or 0) + 1 end
+  ok(states["Likely online"] == 4 and states["Unavailable"] == 8 and states["Unknown"] == 2,
+     "the demo shows all three states side by side")
+
+  -- The paste box has to agree with the results, or the screenshot shows a
+  -- list of names that did not produce the answers beside them.
+  local pasted = {}
+  for line in (T.getText() or ""):gmatch("[^\r\n]+") do pasted[#pasted + 1] = line end
+  ok(#pasted == 14 and pasted[1] == T.order[1], "the box shows the names the results came from")
+
+  local told = false
+  for _, line in ipairs(mock.printed) do
+    if line:match("Nothing was sent") then told = true end
+  end
+  ok(told, "the demo says in chat that it is not a real check")
+end
+
+--------------------------------------------------------------------------
 say("\n-- what the addon tells people to type --")
 --------------------------------------------------------------------------
 -- v1.0.1 shipped telling every new user "loaded. /scout to open." -- the
