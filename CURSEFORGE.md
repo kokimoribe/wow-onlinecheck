@@ -64,6 +64,18 @@ Still open, all optional:
 - additional category (Guild) -- where guild officers actually browse
 - comments are off, so feedback arrives only as GitHub issues
 
+## Every file is reviewed, not just the first
+
+A green CI run does not mean the version is downloadable. Each uploaded file
+enters **Under Review** and becomes public only once a moderator approves it,
+which has taken minutes to an hour or so. Until then the project's public
+Files page shows the previous version, and the CurseForge app offers that one
+-- so "the update has not appeared" is usually review, not a failed upload.
+
+The authors dashboard is the place to tell the two apart:
+<https://authors.curseforge.com/#/projects/1681279/files> shows every file
+with its status. An upload that failed is not listed there at all.
+
 ## Releasing
 
     # bump ## Version: in OnlineCheck/OnlineCheck.toc first -- CI enforces
