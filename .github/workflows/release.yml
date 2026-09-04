@@ -32,12 +32,16 @@ jobs:
 
       - name: Package
         run: |
-          # Only the addon folder. Tests, CI and docs are not shipped to
-          # players, and a zip that quietly carries them is a zip nobody has
-          # actually looked at.
+          # The addon folder plus its licence. Tests, CI and the CurseForge
+          # notes are not shipped to players; the licence is, because a copy
+          # of the code that travels without its terms is not licensed to
+          # anybody.
+          cp LICENSE OnlineCheck/LICENSE
           zip -r OnlineCheck.zip OnlineCheck -x '*.DS_Store'
           unzip -l OnlineCheck.zip
-          test "$(unzip -Z1 OnlineCheck.zip | grep -vc '/$')" = "2"
+          # Exactly the three intended files, so an accidental addition to the
+          # addon folder fails the release instead of shipping unnoticed.
+          test "$(unzip -Z1 OnlineCheck.zip | grep -vc '/$')" = "3"
 
       - name: GitHub release
         env:

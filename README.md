@@ -2,9 +2,8 @@
 
 Paste a list of character names and check who's online.
 
-Built for finding the handful of people worth whispering out of a long list,
-without typing `/who` once per name or filling your friends list with people
-you were only curious about.
+Useful when you have more names than you want to check one at a time, and you
+would rather not add them all to your friends list to find out.
 
 ## Install
 
@@ -51,10 +50,10 @@ cancelled or interrupted run leaves the list honest rather than optimistic.
 
 ## How it works, and what it can't tell you
 
-Each check sends a hidden addon message to the character. Nothing reaches the
-player: an addon message on a prefix their client has no handler for is
-discarded silently, and no whisper is sent. If the character isn't reachable,
-the server replies with its standard "no player named" error, which names them.
+Each check sends a hidden addon message to the character's client. No whisper
+is sent, and a client with no handler for that message discards it, so there
+is nothing for the player to see. If the character isn't reachable, the server
+replies with its standard "no player named" error, which names them.
 
 So **Unavailable** is a positive observation — the server said so.
 **Likely online** is not. It means no offline error arrived before the check

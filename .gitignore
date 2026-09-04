@@ -1,2 +1,4 @@
 *.zip
 .DS_Store
+# Copied in at package time so the addon ships with its terms.
+OnlineCheck/LICENSE

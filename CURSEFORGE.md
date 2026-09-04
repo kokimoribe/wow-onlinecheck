@@ -15,27 +15,24 @@ Everything needed to publish, and the parts that still need a person.
 
 **Description**
 
-> OnlineCheck takes a list of character names and tells you which of them you
-> can whisper right now, so you can find the few people worth talking to
-> without typing `/who` once per name or filling your friends list with people
-> you were only curious about.
+> OnlineCheck takes a list of character names and tells you which of them are
+> reachable right now.
 >
-> Paste names one per line, click Check, and the results group into **Likely
-> online**, **Unavailable** and **Unknown**. Click a result to open a whisper
+> Paste names one per line and click Check. Results group into **Likely
+> online**, **Unavailable** and **Unknown**, and clicking one opens a whisper
 > to that character — the addon never sends anything for you.
 >
-> Each check sends a hidden addon message. Nothing reaches the player: no
-> whisper is sent, and an addon message on a prefix their client doesn't
-> handle is discarded silently. If the character isn't reachable, the server
-> replies with its standard "no player named" error.
+> Each check sends a hidden addon message to the character's client. No
+> whisper is sent, and a client with no handler for that message discards it,
+> so there is nothing for the player to see. If the character isn't reachable,
+> the server replies with its standard "no player named" error.
 >
-> That makes **Unavailable** a positive observation and **Likely online** an
-> absence of one: no offline reply arrived before the check finished. It's
-> good evidence, not a confirmation, and the addon says so rather than
-> flattening it to "Online".
+> That makes **Unavailable** a positive observation and **Likely online** the
+> absence of one: no offline reply arrived before the check finished. Good
+> evidence, not a confirmation, and the addon says so rather than flattening
+> it to "Online".
 >
-> It doesn't run `/who` and doesn't show level, class, guild or zone. It
-> answers one question: can you whisper this person right now.
+> It doesn't run `/who`, and doesn't show level, class, guild or zone.
 >
 > Developed and used on TBC Anniversary (2.5.6), English client. Other
 > versions and locales are untested — reports welcome on GitHub.
