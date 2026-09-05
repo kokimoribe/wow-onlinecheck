@@ -30,6 +30,10 @@ Restart the client for a first install. `/reload` is enough afterwards.
     /onlinecheck debug      print raw system messages during a check
     /onlinecheck pattern    show the pattern replies are matched against
 
+**Copy likely (N)** hands the likely-online names back, already selected —
+press Ctrl+C. An addon cannot write to the system clipboard, so this is the
+only way out. Your pasted list and the results are left untouched.
+
 Paste names into the box, one per line, and click **Check**. It paces one
 check per second, so fifty names take about a minute, and **Cancel** stops it
 at any point. Your list is remembered between reloads.

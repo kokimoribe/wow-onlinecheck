@@ -387,6 +387,49 @@ do
 end
 
 --------------------------------------------------------------------------
+say("\n-- handing the likely names back out --")
+--------------------------------------------------------------------------
+-- An addon cannot write the OS clipboard, so the only thing this can do is
+-- put the right text in front of the player, already selected. What matters
+-- is that the text is right and that nothing else is disturbed.
+do
+  load(0)
+  T.setText("Alpha\nBravo\nCharlie\nDelta")
+  T.start()
+  -- Bravo and Delta answer as offline; Alpha and Charlie do not.
+  T.onEvent("No player named 'Bravo' is currently playing.")
+  T.onEvent("No player named 'Delta' is currently playing.")
+  mock.drain()
+
+  ok(T.copyShown() == false, "the copy panel stays shut until asked for")
+  T.copyLikely()
+  ok(T.copyShown() == true, "the copy panel opens")
+
+  local lines = {}
+  for line in T.copyText():gmatch("[^\r\n]+") do lines[#lines + 1] = line end
+  ok(#lines == 2, "only the likely names are handed out")
+  ok(lines[1] == "Alpha" and lines[2] == "Charlie",
+     "in the order they were pasted, not the order they were answered")
+
+  -- The point of a round trip is that the source list survives it.
+  local still = {}
+  for line in T.getText():gmatch("[^\r\n]+") do still[#still + 1] = line end
+  ok(#still == 4, "the pasted list is left alone")
+  ok(#T.order == 4, "and so are the results")
+end
+
+do
+  load(0)
+  T.setText("Alpha\nBravo")
+  T.start()
+  T.onEvent("No player named 'Alpha' is currently playing.")
+  T.onEvent("No player named 'Bravo' is currently playing.")
+  mock.drain()
+  T.copyLikely()
+  ok(T.copyShown() == false, "nothing likely means nothing to hand out")
+end
+
+--------------------------------------------------------------------------
 say("\n-- what the addon tells people to type --")
 --------------------------------------------------------------------------
 -- v1.0.1 shipped telling every new user "loaded. /scout to open." -- the

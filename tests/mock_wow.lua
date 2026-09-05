@@ -46,7 +46,13 @@ function M.install(sendResult)
     t.GetText = function(self) return self.__text or "" end
     t.SetScript = function(self, ev, fn) self["_" .. ev] = fn; return self end
     t.GetScript = function(self, ev) return self["_" .. ev] end
-    t.IsShown = function() return false end
+    -- Show/Hide track a flag rather than doing nothing, so a test can tell
+    -- whether a panel actually opened. The stub used to answer false always,
+    -- which would have made any assertion about visibility pass without
+    -- meaning anything.
+    t.Show = function(self) self.__shown = true; return self end
+    t.Hide = function(self) self.__shown = false; return self end
+    t.IsShown = function(self) return self.__shown == true end
     return t
   end
   _G.CreateFrame = function() return stub() end

@@ -193,6 +193,76 @@ listScroll:SetSize(310, 234)
 -- and nothing about a list of names suggests it. Reported as a nice
 -- surprise by the first person to use this, which is another way of saying
 -- it was undiscoverable.
+-- Hand the likely-online names back out.
+--
+-- An addon cannot put text on the operating system's clipboard -- there is
+-- no API for it and there never has been. The way every addon does this is
+-- to show the text already selected in an EditBox and let the player press
+-- Ctrl+C, which is a real key press the client handles itself.
+--
+-- Deliberately says nothing about where the names go. This addon does not
+-- know that a website produced the list, and must not start assuming one.
+local copyBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+copyBtn:SetSize(140, 22)
+copyBtn:SetPoint("LEFT", cancelBtn, "RIGHT", 6, 0)
+copyBtn:SetText("Copy likely (0)")
+copyBtn:Disable()
+
+local copyPanel = CreateFrame("Frame", nil, f, "BackdropTemplate")
+copyPanel:SetPoint("TOPLEFT", 14, -248)
+copyPanel:SetPoint("BOTTOMRIGHT", -14, 30)
+copyPanel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8",
+                        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                        edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+copyPanel:SetBackdropColor(0, 0, 0, 0.92)
+copyPanel:SetFrameLevel(f:GetFrameLevel() + 10)
+copyPanel:Hide()
+
+local copyHint = copyPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+copyHint:SetPoint("TOPLEFT", 10, -10)
+copyHint:SetText("Press Ctrl+C to copy. Escape closes this.")
+
+local copyScroll = CreateFrame("ScrollFrame", "OnlineCheckCopyScroll", copyPanel,
+                               "UIPanelScrollFrameTemplate")
+copyScroll:SetPoint("TOPLEFT", 10, -30)
+copyScroll:SetSize(286, 150)
+
+-- Width and height both, always. A previous EditBox here was given a width
+-- and no height, so it occupied no space that could receive a click, and
+-- Ctrl+V went to the game's keybinding instead.
+local copyEdit = CreateFrame("EditBox", nil, copyScroll)
+copyEdit:SetMultiLine(true)
+copyEdit:SetSize(276, 400)
+copyEdit:SetFontObject("ChatFontNormal")
+copyEdit:SetAutoFocus(false)
+copyEdit:SetScript("OnEscapePressed", function(self) self:ClearFocus(); copyPanel:Hide() end)
+copyScroll:SetScrollChild(copyEdit)
+
+local copyClose = CreateFrame("Button", nil, copyPanel, "UIPanelButtonTemplate")
+copyClose:SetSize(70, 20)
+copyClose:SetPoint("BOTTOMRIGHT", -10, 10)
+copyClose:SetText("Close")
+copyClose:SetScript("OnClick", function() copyPanel:Hide() end)
+
+local function likelyNames()
+  local out = {}
+  -- Paste order, not result order: the list keeps whatever ordering it
+  -- arrived with, so it lines up with wherever it came from.
+  for _, n in ipairs(order) do
+    if byName[n].state == LIKELY then out[#out + 1] = n end
+  end
+  return out
+end
+
+copyBtn:SetScript("OnClick", function()
+  local names = likelyNames()
+  if #names == 0 then return end
+  copyEdit:SetText(table.concat(names, "\n"))
+  copyPanel:Show()
+  copyEdit:SetFocus()
+  copyEdit:HighlightText()
+end)
+
 local rowHint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 rowHint:SetPoint("TOPLEFT", 16, -488)
 rowHint:SetText("Click a name to open a whisper.")
@@ -271,6 +341,8 @@ local function refresh()
     end
   end
   local c = counts()
+  copyBtn:SetText(string.format("Copy likely (%d)", c[LIKELY]))
+  if c[LIKELY] > 0 and not running then copyBtn:Enable() else copyBtn:Disable() end
   local when = (not running and lastRunAt) and ("  |cff5f6678checked " .. date("%H:%M", lastRunAt) .. "|r") or ""
   status:SetText(string.format("|cff54be87%d likely online|r  |cff8b92a2%d unavailable|r  |cffe0a33c%d unknown|r%s",
     c[LIKELY], c[UNAVAILABLE], c[UNKNOWN], when))
@@ -504,6 +576,9 @@ if OnlineCheckTest then
   OnlineCheckTest.cancel  = function() cancelled = true end
   OnlineCheckTest.setText = function(t) paste:SetText(t) end
   OnlineCheckTest.getText = function() return paste:GetText() end
+  OnlineCheckTest.copyLikely = function() copyBtn:GetScript("OnClick")() end
+  OnlineCheckTest.copyText  = function() return copyEdit:GetText() end
+  OnlineCheckTest.copyShown = function() return copyPanel:IsShown() end
   OnlineCheckTest.states  = byName
   OnlineCheckTest.order   = order
   OnlineCheckTest.onEvent = function(msg) f:GetScript("OnEvent")(f, "CHAT_MSG_SYSTEM", msg) end
