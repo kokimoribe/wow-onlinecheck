@@ -27,11 +27,10 @@ Restart the client for a first install. `/reload` is enough afterwards.
 
     /onlinecheck            open and close the window
     /onlinecheck demo       fill the window with invented names and results
-    /onlinecheck debug      print raw system messages during a check
+    /onlinecheck debug      print raw system messages, and reply timings
     /onlinecheck pattern    show the pattern replies are matched against
 
-**Copy likely (N)** hands the likely-online names back, already selected —
-press Ctrl+C. An addon cannot write to the system clipboard, so this is the
+**Copy (N)** hands the online names back, already selected — press Ctrl+C. An addon cannot write to the system clipboard, so this is the
 only way out. Your pasted list and the results are left untouched.
 
 Paste names into the box, one per line, and click **Check**. It paces one
@@ -48,11 +47,11 @@ sends anything for you.**
 
 | | |
 |---|---|
-| **Likely online** | The check was accepted and the server didn't report this character as offline. |
-| **Unavailable** | The server reported this character as not currently playing. |
+| **Online** | The check was accepted and the server didn't report this character as offline. |
+| **Offline** | The server reported this character as not currently playing. |
 | **Unknown** | The check failed, was throttled, or the run was cancelled. Nothing was learned. |
 
-Results are grouped **Likely online → Unknown → Unavailable**, and within each
+Results are grouped **Online → Unknown → Offline**, and within each
 group they keep the order you pasted them in.
 
 Every name starts **Unknown** and only moves when something is observed, so a
@@ -65,8 +64,8 @@ is sent, and a client with no handler for that message discards it, so there
 is nothing for the player to see. If the character isn't reachable, the server
 replies with its standard "no player named" error, which names them.
 
-So **Unavailable** is a positive observation — the server said so.
-**Likely online** is not. It means no offline error arrived before the check
+So **Offline** is a positive observation — the server said so.
+**Online** is not. It means no offline error arrived before the check
 finished, which is good evidence and not a confirmation. Two things can make
 it wrong: an offline reply arriving late, and someone logging out immediately
 after the check.
@@ -87,13 +86,13 @@ hasn't been tested. Other game versions haven't been tested either. If it
 works — or doesn't — on yours, please
 [open an issue](https://github.com/kokimoribe/wow-onlinecheck/issues).
 
-### If every name comes back "Likely online"
+### If every name comes back "Online"
 
 The addon warns you when a run finds nothing unavailable at all. That can mean
 everyone really is on, or it can mean the reply pattern doesn't match your
 client's wording — it can't tell those apart.
 
-Check a character you know is offline. If that one also reads *Likely online*,
+Check a character you know is offline. If that one also reads *Online*,
 run `/onlinecheck debug`, check them again, and include the raw line in an
 issue.
 

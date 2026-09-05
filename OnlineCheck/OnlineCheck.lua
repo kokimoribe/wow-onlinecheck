@@ -14,8 +14,9 @@ How it works, and what it can and cannot tell you:
   That asymmetry is why the three states are worded the way they are, and why
   nothing here ever says "Offline" or "Online" on its own authority:
 
-    Unavailable    the server named them as not currently playing
-    Likely online  the send was accepted and no error came back in time
+    Offline   the server named them as not currently playing
+    Online    the send was accepted and no error came back in time
+    Unknown   the send failed, was throttled, or the run was cancelled
     Unknown        the send failed, was throttled, or the run was cancelled
 
   A cancelled or broken run must never turn the list green, so every name
@@ -36,15 +37,21 @@ local PREFIX = "ONLINECHECK"
 -- burst, and a 50-name list finishes in about a minute.
 local SEND_INTERVAL = 1.0
 -- How long to keep listening after the last send before calling the
--- remainder "Likely online". Starting value, not a proven maximum: one 200ms
+-- remainder Online. Starting value, not a proven maximum: one 200ms
 -- observation says nothing about the tail.
 local SETTLE_SECONDS = 5.0
 
-local UNKNOWN, UNAVAILABLE, LIKELY = "Unknown", "Unavailable", "Likely online"
+-- Online is an inference from silence: the send was accepted and the server
+-- did not say otherwise. The interface used to say "Likely online" to admit
+-- that, and it was hedging in the wrong place -- a person reading a list of
+-- names wants to know who they can whisper, and "likely" does not change
+-- what they do next. Unknown still exists for the cases where nothing was
+-- learned, which is where the honesty actually belongs.
+local UNKNOWN, OFFLINE, ONLINE = "Unknown", "Offline", "Online"
 
 local COLOR = {
-  [LIKELY]      = "|cff54be87",
-  [UNAVAILABLE] = "|cff8b92a2",
+  [ONLINE]      = "|cff54be87",
+  [OFFLINE] = "|cff8b92a2",
   [UNKNOWN]     = "|cffe0a33c",
 }
 
@@ -66,7 +73,7 @@ local SUCCESS = (Enum and Enum.SendAddonMessageResult and Enum.SendAddonMessageR
 --------------------------------------------------------------------------
 -- Deliberately not anchored at the end. The message observed in TBC Anniversary
 -- printed without a trailing period, and if the pattern misses, every name
--- silently becomes "Likely online" -- a broken checker turning the list green
+-- silently becomes Online -- a broken checker turning the list green
 -- is the worst failure this can have, so the match is loose and a run that
 -- finds nothing warns instead.
 local function toPattern(fmt)
@@ -193,7 +200,7 @@ listScroll:SetSize(310, 234)
 -- and nothing about a list of names suggests it. Reported as a nice
 -- surprise by the first person to use this, which is another way of saying
 -- it was undiscoverable.
--- Hand the likely-online names back out.
+-- Hand the online names back out.
 --
 -- An addon cannot put text on the operating system's clipboard -- there is
 -- no API for it and there never has been. The way every addon does this is
@@ -205,7 +212,7 @@ listScroll:SetSize(310, 234)
 local copyBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 copyBtn:SetSize(140, 22)
 copyBtn:SetPoint("LEFT", cancelBtn, "RIGHT", 6, 0)
-copyBtn:SetText("Copy likely (0)")
+copyBtn:SetText("Copy (0)")
 copyBtn:Disable()
 
 local copyPanel = CreateFrame("Frame", nil, f, "BackdropTemplate")
@@ -244,18 +251,18 @@ copyClose:SetPoint("BOTTOMRIGHT", -10, 10)
 copyClose:SetText("Close")
 copyClose:SetScript("OnClick", function() copyPanel:Hide() end)
 
-local function likelyNames()
+local function onlineNames()
   local out = {}
   -- Paste order, not result order: the list keeps whatever ordering it
   -- arrived with, so it lines up with wherever it came from.
   for _, n in ipairs(order) do
-    if byName[n].state == LIKELY then out[#out + 1] = n end
+    if byName[n].state == ONLINE then out[#out + 1] = n end
   end
   return out
 end
 
 copyBtn:SetScript("OnClick", function()
-  local names = likelyNames()
+  local names = onlineNames()
   if #names == 0 then return end
   copyEdit:SetText(table.concat(names, "\n"))
   copyPanel:Show()
@@ -296,7 +303,7 @@ end
 --------------------------------------------------------------------------
 -- rendering
 --------------------------------------------------------------------------
-local RANK = { [LIKELY] = 1, [UNKNOWN] = 2, [UNAVAILABLE] = 3 }
+local RANK = { [ONLINE] = 1, [UNKNOWN] = 2, [OFFLINE] = 3 }
 
 local function sortedNames()
   local out = {}
@@ -316,7 +323,7 @@ local function sortedNames()
 end
 
 local function counts()
-  local c = { [LIKELY] = 0, [UNAVAILABLE] = 0, [UNKNOWN] = 0 }
+  local c = { [ONLINE] = 0, [OFFLINE] = 0, [UNKNOWN] = 0 }
   for _, n in ipairs(order) do c[byName[n].state] = c[byName[n].state] + 1 end
   return c
 end
@@ -341,11 +348,11 @@ local function refresh()
     end
   end
   local c = counts()
-  copyBtn:SetText(string.format("Copy likely (%d)", c[LIKELY]))
-  if c[LIKELY] > 0 and not running then copyBtn:Enable() else copyBtn:Disable() end
+  copyBtn:SetText(string.format("Copy (%d)", c[ONLINE]))
+  if c[ONLINE] > 0 and not running then copyBtn:Enable() else copyBtn:Disable() end
   local when = (not running and lastRunAt) and ("  |cff5f6678checked " .. date("%H:%M", lastRunAt) .. "|r") or ""
-  status:SetText(string.format("|cff54be87%d likely online|r  |cff8b92a2%d unavailable|r  |cffe0a33c%d unknown|r%s",
-    c[LIKELY], c[UNAVAILABLE], c[UNKNOWN], when))
+  status:SetText(string.format("|cff54be87%d online|r  |cff8b92a2%d offline|r  |cffe0a33c%d unknown|r%s",
+    c[ONLINE], c[OFFLINE], c[UNKNOWN], when))
 end
 listScroll:SetScript("OnVerticalScroll", function(self, offset)
   FauxScrollFrame_OnVerticalScroll(self, offset, ROW_H, refresh)
@@ -354,13 +361,33 @@ end)
 --------------------------------------------------------------------------
 -- the check
 --------------------------------------------------------------------------
+-- How long each offline reply took to come back, in seconds.
+--
+-- SETTLE_SECONDS is 5 on the strength of a single 200ms observation, which
+-- says nothing about the tail. Waiting five seconds after the last send is
+-- most of why a check feels slow, so the number worth having is the real
+-- distribution -- collected here, reported by `/onlinecheck debug`, and
+-- only then used to argue for a shorter wait.
+local replyTimes = {}
+
 local function setState(name, state)
   local e = byName[name]
   if not e then return end
   -- An explicit observation always wins over an assumption.
-  if state == UNAVAILABLE or e.state ~= UNAVAILABLE then
+  if state == OFFLINE or e.state ~= OFFLINE then
+    if state == OFFLINE and e.sentAt then
+      replyTimes[#replyTimes + 1] = GetTime() - e.sentAt
+    end
     e.state, e.at = state, time()
   end
+end
+
+local function replyStats()
+  if #replyTimes == 0 then return nil end
+  local t = {}
+  for i, v in ipairs(replyTimes) do t[i] = v end
+  table.sort(t)
+  return { n = #t, min = t[1], median = t[math.ceil(#t / 2)], max = t[#t] }
 end
 
 -- A per-row timestamp was noise. Every Check wipes the list and starts over,
@@ -380,27 +407,33 @@ local debugging = false
 
 local function settle()
   -- Cancelling during the wait must also stop this. Without the check the
-  -- timer still fired and promoted everything to "Likely online" after the
+  -- timer still fired and promoted everything to Online after the
   -- run had been abandoned -- the cancel button appeared to work and did not.
   if cancelled then
     finish("Check cancelled.")
     return
   end
   -- Everything still Unknown after the settle window had its send accepted
-  -- and produced no error, so it is *likely* reachable. Deliberately not
+  -- and produced no error, so it is reachable as far as anything here can tell.
   -- called Online: no positive observation was made.
   for _, n in ipairs(order) do
     local e = byName[n]
-    if e.state == UNKNOWN and e.sent then setState(n, LIKELY) end
+    if e.state == UNKNOWN and e.sent then setState(n, ONLINE) end
   end
   local c = counts()
-  -- Nothing came back unavailable. That might be true, or the reply pattern
+  -- Nothing came back offline. That might be true, or the reply pattern
   -- might not match this client's wording -- and this warning does not tell
   -- the two apart, so it asks rather than concludes. It certainly does not
   -- validate the green results.
-  if sentCount > 0 and c[UNAVAILABLE] == 0 then
-    print("|cffe0a33cOnlineCheck|r No unavailable results. Try a character you know is "
+  if sentCount > 0 and c[OFFLINE] == 0 then
+    print("|cffe0a33cOnlineCheck|r Nothing came back offline. Try a character you know is "
       .. "offline to check that the addon is working.")
+  end
+  local st = replyStats()
+  if debugging and st then
+    print(("|cff5f6678OnlineCheck|r %d offline replies: fastest %.2fs, median %.2fs, "
+      .. "slowest %.2fs. The wait after the last send is %ds."):format(
+      st.n, st.min, st.median, st.max, SETTLE_SECONDS))
   end
   finish("Check complete.")
 end
@@ -416,10 +449,11 @@ local function step(i)
     C_Timer.After(SETTLE_SECONDS, settle)
     return
   end
+  byName[name].sentAt = GetTime()
   local ok = C_ChatInfo.SendAddonMessage(PREFIX, "1", "WHISPER", name)
   -- Only an explicit Success counts. This previously also accepted nil and
   -- true "defensively", which meant an unexpected API result became a
-  -- successful send and then, five seconds later, "Likely online" -- a
+  -- successful send and then, five seconds later, Online -- a
   -- fabricated observation. Anything we do not recognise leaves the name
   -- Unknown and says so once, loudly, rather than guessing.
   if ok == SUCCESS then
@@ -454,6 +488,7 @@ local function startCheck()
     print("|cff8b7bf0OnlineCheck|r Paste at least one character name.")
     return
   end
+  wipe(replyTimes)
   running, cancelled, sentCount = true, false, 0
   checkBtn:Disable()
   cancelBtn:Enable()
@@ -480,7 +515,7 @@ f:SetScript("OnEvent", function(_, event, msg)
   -- Match case-insensitively: the server echoes its own capitalisation.
   for _, n in ipairs(order) do
     if n:lower() == who:lower() then
-      setState(n, UNAVAILABLE)
+      setState(n, OFFLINE)
       refresh()
       return
     end
@@ -509,11 +544,11 @@ end)
 --
 -- Sends nothing and contacts nobody.
 local DEMO = {
-  { "Thrall", LIKELY }, { "Sylvanas", UNAVAILABLE }, { "Jaina", LIKELY },
-  { "Illidan", UNAVAILABLE }, { "Khadgar", UNAVAILABLE }, { "Maiev", LIKELY },
-  { "Akama", UNKNOWN }, { "Velen", UNAVAILABLE }, { "Vashj", UNAVAILABLE },
-  { "Kaelthas", LIKELY }, { "Gruul", UNAVAILABLE }, { "Magtheridon", UNKNOWN },
-  { "Kazzak", UNAVAILABLE }, { "Nazgrel", UNAVAILABLE },
+  { "Thrall", ONLINE }, { "Sylvanas", OFFLINE }, { "Jaina", ONLINE },
+  { "Illidan", OFFLINE }, { "Khadgar", OFFLINE }, { "Maiev", ONLINE },
+  { "Akama", UNKNOWN }, { "Velen", OFFLINE }, { "Vashj", OFFLINE },
+  { "Kaelthas", ONLINE }, { "Gruul", OFFLINE }, { "Magtheridon", UNKNOWN },
+  { "Kazzak", OFFLINE }, { "Nazgrel", OFFLINE },
 }
 
 local function demo()
@@ -576,9 +611,10 @@ if OnlineCheckTest then
   OnlineCheckTest.cancel  = function() cancelled = true end
   OnlineCheckTest.setText = function(t) paste:SetText(t) end
   OnlineCheckTest.getText = function() return paste:GetText() end
-  OnlineCheckTest.copyLikely = function() copyBtn:GetScript("OnClick")() end
+  OnlineCheckTest.copyOnline = function() copyBtn:GetScript("OnClick")() end
   OnlineCheckTest.copyText  = function() return copyEdit:GetText() end
   OnlineCheckTest.copyShown = function() return copyPanel:IsShown() end
+  OnlineCheckTest.replyStats = replyStats
   OnlineCheckTest.states  = byName
   OnlineCheckTest.order   = order
   OnlineCheckTest.onEvent = function(msg) f:GetScript("OnEvent")(f, "CHAT_MSG_SYSTEM", msg) end

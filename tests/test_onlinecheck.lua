@@ -66,7 +66,7 @@ do
   mock.drain()                        -- let the settle timer run
   local s = statesOf()
   ok(s.Aaa == "Unknown" and s.Bbb == "Unknown" and s.Ccc == "Unknown",
-     "cancelling during the settle wait leaves names Unknown, not Likely online")
+     "cancelling during the settle wait leaves names Unknown, not Online")
 end
 
 do
@@ -91,7 +91,7 @@ do
   mock.drain()
   local s = statesOf()
   ok(s.Aaa == "Unknown" and s.Bbb == "Unknown",
-     "a nil send result stays Unknown rather than becoming Likely online")
+     "a nil send result stays Unknown rather than becoming Online")
 end
 
 do
@@ -108,8 +108,8 @@ do
   T.start()
   mock.drain()
   local s = statesOf()
-  ok(s.Aaa == "Likely online" and s.Bbb == "Likely online",
-     "a clean run with no replies reaches Likely online")
+  ok(s.Aaa == "Online" and s.Bbb == "Online",
+     "a clean run with no replies reaches Online")
 end
 
 --------------------------------------------------------------------------
@@ -123,8 +123,8 @@ do
   T.onEvent("No player named 'Foter' is currently playing")   -- no period
   mock.drain()
   local s = statesOf()
-  ok(s.Foter == "Unavailable", "an offline reply without a trailing period is matched")
-  ok(s["Mántle"] == "Likely online", "a name with no reply is Likely online")
+  ok(s.Foter == "Offline", "an offline reply without a trailing period is matched")
+  ok(s["Mántle"] == "Online", "a name with no reply is Online")
 end
 
 do
@@ -134,7 +134,7 @@ do
   mock.tick()
   T.onEvent("No player named 'FOTER' is currently playing.")  -- server casing
   mock.drain()
-  ok(statesOf().Foter == "Unavailable", "the reply match is case-insensitive")
+  ok(statesOf().Foter == "Offline", "the reply match is case-insensitive")
 end
 
 do
@@ -144,7 +144,7 @@ do
   mock.tick()
   T.onEvent("Foter has come online.")
   mock.drain()
-  ok(statesOf().Foter == "Likely online", "an unrelated system message is ignored")
+  ok(statesOf().Foter == "Online", "an unrelated system message is ignored")
 end
 
 --------------------------------------------------------------------------
@@ -260,7 +260,7 @@ do
 
   local states = {}
   for _, n in ipairs(T.order) do states[T.states[n].state] = (states[T.states[n].state] or 0) + 1 end
-  ok(states["Likely online"] == 4 and states["Unavailable"] == 8 and states["Unknown"] == 2,
+  ok(states["Online"] == 4 and states["Offline"] == 8 and states["Unknown"] == 2,
      "the demo shows all three states side by side")
 
   -- The paste box has to agree with the results, or the screenshot shows a
@@ -318,9 +318,9 @@ do
   T.start()
   ok(said("Checking 1 name (about 6s)."), "a single-name estimate uses the singular")
   mock.drain()
-  ok(shows("1 likely online"), "the summary spells out likely online")
+  ok(shows("1 online"), "the summary counts the online names")
   ok(said("Check complete."), "completion uses a short confirmation")
-  ok(said("No unavailable results. Try a character you know is offline"),
+  ok(said("Nothing came back offline. Try a character you know is offline"),
      "an all-green run still asks for an independent check")
 end
 
@@ -387,7 +387,33 @@ do
 end
 
 --------------------------------------------------------------------------
-say("\n-- handing the likely names back out --")
+say("\n-- how long replies actually take --")
+--------------------------------------------------------------------------
+-- The five-second wait after the last send rests on one 200ms observation.
+-- Shortening it should rest on a measured distribution instead, so the run
+-- collects one.
+do
+  load(0)
+  ok(T.replyStats() == nil, "no replies, nothing to report")
+  T.setText("Aaa\nBbb")
+  T.start()
+  -- Only the first name is sent synchronously; the rest are on timers. So
+  -- this reply is the one that can be timed, and Bbb -- sent during the
+  -- drain and never answered -- must contribute nothing.
+  T.onEvent("No player named 'Aaa' is currently playing.")
+  mock.drain()
+  local st = T.replyStats()
+  ok(st ~= nil and st.n == 1, "one timing per offline reply, and none for a silent name")
+  ok(st.min <= st.median and st.median <= st.max, "sorted, so the median means something")
+
+  -- A second run must not report the first run's timings.
+  T.start()
+  mock.drain()
+  ok(T.replyStats() == nil, "each run measures only itself")
+end
+
+--------------------------------------------------------------------------
+say("\n-- handing the online names back out --")
 --------------------------------------------------------------------------
 -- An addon cannot write the OS clipboard, so the only thing this can do is
 -- put the right text in front of the player, already selected. What matters
@@ -402,12 +428,12 @@ do
   mock.drain()
 
   ok(T.copyShown() == false, "the copy panel stays shut until asked for")
-  T.copyLikely()
+  T.copyOnline()
   ok(T.copyShown() == true, "the copy panel opens")
 
   local lines = {}
   for line in T.copyText():gmatch("[^\r\n]+") do lines[#lines + 1] = line end
-  ok(#lines == 2, "only the likely names are handed out")
+  ok(#lines == 2, "only the online names are handed out")
   ok(lines[1] == "Alpha" and lines[2] == "Charlie",
      "in the order they were pasted, not the order they were answered")
 
@@ -425,7 +451,7 @@ do
   T.onEvent("No player named 'Alpha' is currently playing.")
   T.onEvent("No player named 'Bravo' is currently playing.")
   mock.drain()
-  T.copyLikely()
+  T.copyOnline()
   ok(T.copyShown() == false, "nothing likely means nothing to hand out")
 end
 
